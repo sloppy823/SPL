@@ -1,4 +1,6 @@
 package bgu.spl.mics;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The MicroService is an abstract class that any micro-service in the system
@@ -14,7 +16,7 @@ package bgu.spl.mics;
  * message-queue (see {@link MessageBus#register(bgu.spl.mics.MicroService)}
  * method). The abstract MicroService stores this callback together with the
  * type of the message is related to.
- * 
+ *
  * Only private fields and methods may be added to this class.
  * <p>
  */
@@ -22,6 +24,9 @@ public abstract class MicroService implements Runnable {
 
     private boolean terminated = false;
     private final String name;
+    protected final MessageBusImpl bus=MessageBusImpl.getIstance();
+    private final ConcurrentHashMap<Class<?>, ConcurrentLinkedQueue<Callback<?>>> eventCallbacks = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Class<?>, ConcurrentLinkedQueue<Callback<?>>> broadcastCallbacks = new ConcurrentHashMap<>();
 
     /**
      * @param name the micro-service name (used mainly for debugging purposes -
@@ -53,7 +58,12 @@ public abstract class MicroService implements Runnable {
      *                 queue.
      */
     protected final <T, E extends Event<T>> void subscribeEvent(Class<E> type, Callback<E> callback) {
-        //TODO: implement this.
+        if (type == null || callback == null) {
+            throw new IllegalArgumentException("Type and callback cannot be null");
+        }
+
+        eventCallbacks.computeIfAbsent(type, k -> new ConcurrentLinkedQueue<>()).add(callback);
+        bus.subscribeEvent(type, this);
     }
 
     /**
@@ -77,8 +87,15 @@ public abstract class MicroService implements Runnable {
      *                 queue.
      */
     protected final <B extends Broadcast> void subscribeBroadcast(Class<B> type, Callback<B> callback) {
-        //TODO: implement this.
+        if (type == null || callback == null) {
+            throw new IllegalArgumentException("Type and callback cannot be null");
+        }
+
+        broadcastCallbacks.computeIfAbsent(type, k -> new ConcurrentLinkedQueue<>()).add(callback);
+
+        bus.subscribeBroadcast(type, this);
     }
+
 
     /**
      * Sends the event {@code e} using the message-bus and receive a {@link Future<T>}
@@ -93,8 +110,7 @@ public abstract class MicroService implements Runnable {
      * 	       			null in case no micro-service has subscribed to {@code e.getClass()}.
      */
     protected final <T> Future<T> sendEvent(Event<T> e) {
-        //TODO: implement this.
-        return null; //TODO: delete this line :)
+        return bus.sendEvent(e);
     }
 
     /**
@@ -104,7 +120,7 @@ public abstract class MicroService implements Runnable {
      * @param b The broadcast message to send
      */
     protected final void sendBroadcast(Broadcast b) {
-        //TODO: implement this.
+        bus.sendBroadcast(b);
     }
 
     /**
@@ -118,7 +134,7 @@ public abstract class MicroService implements Runnable {
      *               {@code e}.
      */
     protected final <T> void complete(Event<T> e, T result) {
-        //TODO: implement this.
+        bus.complete(e, result);
     }
 
     /**
@@ -146,6 +162,7 @@ public abstract class MicroService implements Runnable {
      * The entry point of the micro-service. TODO: you must complete this code
      * otherwise you will end up in an infinite loop.
      */
+
     @Override
     public final void run() {
         initialize();
@@ -153,5 +170,6 @@ public abstract class MicroService implements Runnable {
             System.out.println("NOT IMPLEMENTED!!!"); //TODO: you should delete this line :)
         }
     }
+
 
 }
