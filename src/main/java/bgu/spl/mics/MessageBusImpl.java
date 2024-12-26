@@ -73,7 +73,9 @@ public class MessageBusImpl implements MessageBus {
 	public void sendBroadcast(Broadcast b) {
 		List<MicroService> subscribers = broadcastSubscribers.getOrDefault(b.getClass(), new ArrayList<>());
 		for (MicroService m : subscribers) {
-			microServiceQueues.get(m).offer(b);
+			synchronized (microServiceQueues){
+				microServiceQueues.get(m).offer(b);
+			}
 		}
 	}
 
