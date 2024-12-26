@@ -1,30 +1,44 @@
 package bgu.spl.mics;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
+
+import java.util.*;
 import java.util.concurrent.*;
 
-
 /**
- * The {@link MessageBusImpl class is the implementation of the MessageBus interface.
- * Write your implementation here!
- * Only private fields and methods can be added to this class.
+ * The {@link MessageBusImpl} class is the implementation of the MessageBus interface.
+ * This class implements a thread-safe singleton message bus for handling events and broadcasts.
  */
 public class MessageBusImpl implements MessageBus {
-	private final ConcurrentHashMap<Class<? extends Message>, Queue<MicroService>> eventSubscribers;
-	private final Map<Class<? extends Broadcast>, List<MicroService>> broadcastSubscribers;
-	private final Map<MicroService, BlockingQueue<Message>> microServiceQueues;
 
+	// Maps for event and broadcast subscriptions
+	private final ConcurrentHashMap<Class<? extends Event<?>>, Queue<MicroService>> eventSubscribers;
+	private final ConcurrentHashMap<Class<? extends Broadcast>, List<MicroService>> broadcastSubscribers;
 
+	// Map for storing microservice message queues
+	private final ConcurrentHashMap<MicroService, BlockingQueue<Message>> microServiceQueues;
+
+	// Map to store futures associated with events
+	private final ConcurrentHashMap<Event<?>, Future<?>> eventFutures;
+
+	// Singleton instance
+	private static class SingletonHolder {
+		private static final MessageBusImpl INSTANCE = new MessageBusImpl();
+	}
+
+	// Private constructor for Singleton pattern
 	private MessageBusImpl() {
 		eventSubscribers = new ConcurrentHashMap<>();
 		broadcastSubscribers = new ConcurrentHashMap<>();
 		microServiceQueues = new ConcurrentHashMap<>();
+		eventFutures = new ConcurrentHashMap<>();
+	}
+
+	// Singleton getInstance method
+	public static MessageBusImpl getInstance() {
+		return SingletonHolder.INSTANCE;
 	}
 
 	@Override
-	public synchronized  <T> void subscribeEvent(Class<? extends Event<T>> type, MicroService m) {
+	public synchronized <T> void subscribeEvent(Class<? extends Event<T>> type, MicroService m) {
 		eventSubscribers.putIfAbsent(type, new LinkedList<>());
 		Queue<MicroService> subscribersQueue = eventSubscribers.get(type);
 		if (!subscribersQueue.contains(m)) {
@@ -39,27 +53,46 @@ public class MessageBusImpl implements MessageBus {
 		if (!subscribersList.contains(m)) {
 			subscribersList.add(m);
 		}
-
-
 	}
 
 	@Override
 	public <T> void complete(Event<T> e, T result) {
-		// TODO Auto-generated method stub
-
+		@SuppressWarnings("unchecked")
+		Future<T> future = (Future<T>) eventFutures.remove(e);
+		if (future != null) {
+			future.resolve(result);
+		}
 	}
 
 	@Override
 	public void sendBroadcast(Broadcast b) {
-		// TODO Auto-generated method stub
-
+		List<MicroService> subscribers = broadcastSubscribers.getOrDefault(b.getClass(), new ArrayList<>());
+		for (MicroService m : subscribers) {
+			microServiceQueues.get(m).offer(b);
+		}
 	}
-
 
 	@Override
 	public <T> Future<T> sendEvent(Event<T> e) {
-		//take the microservice that is subscribed to the event type from the queue
-		//eventSubscriber.get(e).handleEvent(e);
+		Queue<MicroService> subscribers = eventSubscribers.get(e.getClass());
+		if (subscribers == null || subscribers.isEmpty()) {
+			return null;
+		}
+
+		MicroService target = null;
+		synchronized (subscribers) {
+			target = subscribers.poll(); // Round-robin selection
+			if (target != null) {
+				subscribers.offer(target);
+			}
+		}
+
+		if (target != null) {
+			Future<T> future = new Future<>();
+			eventFutures.put(e, future);
+			microServiceQueues.get(target).offer(e);
+			return future;
+		}
 		return null;
 	}
 
@@ -73,16 +106,23 @@ public class MessageBusImpl implements MessageBus {
 
 	@Override
 	public void unregister(MicroService m) {
-		// TODO Auto-generated method stub
+		microServiceQueues.remove(m);
 
+		// Remove the microservice from event and broadcast subscribers
+		for (Queue<MicroService> queue : eventSubscribers.values()) {
+			queue.remove(m);
+		}
+		for (List<MicroService> list : broadcastSubscribers.values()) {
+			list.remove(m);
+		}
 	}
 
 	@Override
 	public Message awaitMessage(MicroService m) throws InterruptedException {
-		// TODO Auto-generated method stub
-		return null;
+		BlockingQueue<Message> queue = microServiceQueues.get(m);
+		if (queue == null) {
+			throw new IllegalStateException("MicroService is not registered.");
+		}
+		return queue.take();
 	}
-
-
-
 }
