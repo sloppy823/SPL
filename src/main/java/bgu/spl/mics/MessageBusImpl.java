@@ -38,20 +38,25 @@ public class MessageBusImpl implements MessageBus {
 	}
 
 	@Override
-	public synchronized <T> void subscribeEvent(Class<? extends Event<T>> type, MicroService m) {
+	public <T> void subscribeEvent(Class<? extends Event<T>> type, MicroService m) {
 		eventSubscribers.putIfAbsent(type, new LinkedList<>());
 		Queue<MicroService> subscribersQueue = eventSubscribers.get(type);
-		if (!subscribersQueue.contains(m)) {
-			subscribersQueue.offer(m);
+		synchronized (subscribersQueue){
+			if (!subscribersQueue.contains(m)) {
+				subscribersQueue.offer(m);
+			}
 		}
+
 	}
 
 	@Override
 	public void subscribeBroadcast(Class<? extends Broadcast> type, MicroService m) {
 		broadcastSubscribers.putIfAbsent(type, new LinkedList<>());
 		List<MicroService> subscribersList = broadcastSubscribers.get(type);
-		if (!subscribersList.contains(m)) {
-			subscribersList.add(m);
+		synchronized (subscribersList) {
+			if (!subscribersList.contains(m)) {
+				subscribersList.add(m);
+			}
 		}
 	}
 
