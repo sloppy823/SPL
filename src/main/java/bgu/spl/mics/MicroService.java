@@ -25,8 +25,8 @@ public abstract class MicroService implements Runnable {
     private boolean terminated = false;
     private final String name;
     protected final MessageBusImpl bus=MessageBusImpl.getInstance();
-    private final ConcurrentHashMap<Class<?>, ConcurrentLinkedQueue<Callback<?>>> eventCallbacks = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Class<?>, ConcurrentLinkedQueue<Callback<?>>> broadcastCallbacks = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Event, Callback> eventCallbacks = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Broadcast, Callback> broadcastCallbacks = new ConcurrentHashMap<>();
 
     /**
      * @param name the micro-service name (used mainly for debugging purposes -
@@ -165,11 +165,30 @@ public abstract class MicroService implements Runnable {
 
     @Override
     public final void run() {
+        bus.register(this);
         initialize();
         while (!terminated) {
-            System.out.println("NOT IMPLEMENTED!!!"); //TODO: you should delete this line :)
+            try {
+                Message msg = bus.awaitMessage(this);
+                if (msg != null) {
+                    if (msg instanceof Event) {
+                        Callback tmp = eventCallbacks.get(msg.getClass().getName());
+                        tmp.call(msg);
+                    } else {
+                        Callback tmp = broadcastCallbacks.get(msg.getClass().getName());
+                        tmp.call(msg);
+
+                    }
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+        }
+        bus.unregister(this);
+
+
         }
     }
-
-
 }
