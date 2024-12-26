@@ -9,10 +9,10 @@ import java.util.List;
 public class Camera {
     private int id;
     private int frequency;
-    private Status status;
+    private STATUS status;
     private List<StampedDetectedObjects> detectedObjectsList;
 
-    public enum Status { UP, DOWN, ERROR; }
+
 
     // Getters and Setters
     public int getId() { return id; }
@@ -21,8 +21,8 @@ public class Camera {
     public int getFrequency() { return frequency; }
     public void setFrequency(int frequency) { this.frequency = frequency; }
 
-    public Status getStatus() { return status; }
-    public void setStatus(Status status) { this.status = status; }
+    public STATUS getStatus() { return status; }
+    public void setStatus(STATUS status) { this.status = status; }
 
     public List<StampedDetectedObjects> getDetectedObjectsList() { return detectedObjectsList; }
     public void setDetectedObjectsList(List<StampedDetectedObjects> detectedObjectsList) { this.detectedObjectsList = detectedObjectsList; }

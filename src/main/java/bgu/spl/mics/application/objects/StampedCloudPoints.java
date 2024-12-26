@@ -9,7 +9,7 @@ import java.util.List;
 public class StampedCloudPoints {
     private String id;
     private int time;
-    private List<List<Double>> cloudPoints;
+    private List<CloudPoint> cloudPoints;
 
     // Getters and Setters
     public String getId() { return id; }
@@ -18,6 +18,6 @@ public class StampedCloudPoints {
     public int getTime() { return time; }
     public void setTime(int time) { this.time = time; }
 
-    public List<List<Double>> getCloudPoints() { return cloudPoints; }
-    public void setCloudPoints(List<List<Double>> cloudPoints) { this.cloudPoints = cloudPoints; }
+    public List<CloudPoint>  getCloudPoints() { return cloudPoints; }
+    public void setCloudPoints(List<CloudPoint>  cloudPoints) { this.cloudPoints = cloudPoints; }
 }
