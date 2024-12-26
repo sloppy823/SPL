@@ -25,8 +25,8 @@ public abstract class MicroService implements Runnable {
     private boolean terminated = false;
     private final String name;
     protected final MessageBusImpl bus=MessageBusImpl.getInstance();
-    private final ConcurrentHashMap<Event, Callback> eventCallbacks = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Broadcast, Callback> broadcastCallbacks = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Callback> eventCallbacks = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Callback> broadcastCallbacks = new ConcurrentHashMap<>();
 
     /**
      * @param name the micro-service name (used mainly for debugging purposes -
@@ -62,7 +62,7 @@ public abstract class MicroService implements Runnable {
             throw new IllegalArgumentException("Type and callback cannot be null");
         }
 
-        eventCallbacks.computeIfAbsent(type, k -> new ConcurrentLinkedQueue<>()).add(callback);
+        eventCallbacks.put(type.getName(), callback);
         bus.subscribeEvent(type, this);
     }
 
@@ -91,7 +91,7 @@ public abstract class MicroService implements Runnable {
             throw new IllegalArgumentException("Type and callback cannot be null");
         }
 
-        broadcastCallbacks.computeIfAbsent(type, k -> new ConcurrentLinkedQueue<>()).add(callback);
+        broadcastCallbacks.put(type.getName(), callback);
 
         bus.subscribeBroadcast(type, this);
     }
@@ -191,4 +191,3 @@ public abstract class MicroService implements Runnable {
 
         }
     }
-}
