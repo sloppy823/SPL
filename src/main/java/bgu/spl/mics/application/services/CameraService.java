@@ -1,8 +1,7 @@
 package bgu.spl.mics.application.services;
 
 import bgu.spl.mics.MicroService;
-import bgu.spl.mics.application.messages.DetectObjectsEvent;
-import bgu.spl.mics.application.messages.TickBroadcast;
+import bgu.spl.mics.application.messages.*;
 import bgu.spl.mics.application.objects.Camera;
 import bgu.spl.mics.application.objects.StampedDetectedObjects;
 
@@ -51,5 +50,9 @@ public class CameraService extends MicroService {
         }
     }
 });
+        subscribeBroadcast(TerminatedBroadcast.class, termination -> {
+            System.out.println(getName() + " received TerminationBroadcast. Terminating.");
+            terminate();
+        });
     }
 }
