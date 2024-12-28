@@ -1,7 +1,10 @@
 package bgu.spl.mics.application.services;
 
 import bgu.spl.mics.MicroService;
+import bgu.spl.mics.application.messages.DetectObjectsEvent;
+import bgu.spl.mics.application.messages.TickBroadcast;
 import bgu.spl.mics.application.objects.Camera;
+import bgu.spl.mics.application.objects.StampedDetectedObjects;
 
 /**
  * CameraService is responsible for processing data from the camera and
@@ -12,6 +15,8 @@ import bgu.spl.mics.application.objects.Camera;
  */
 public class CameraService extends MicroService {
     Camera camera;
+    private int currentTick = 0;
+
 
     /**
      * Constructor for CameraService.
@@ -22,7 +27,7 @@ public class CameraService extends MicroService {
         super("cameraService");
         this.camera = camera;
 
-            // TODO Implement this);
+        // TODO Implement this);
     }
 
     /**
@@ -32,12 +37,19 @@ public class CameraService extends MicroService {
      */
     @Override
     protected void initialize() {
-        new Thread(() -> {
-            subscribeBroadcast(TickBroadcast.class, tickBroadcast -> {
-                camera.getDetectedObjectsList();
+        subscribeBroadcast(TickBroadcast.class, tickBroadcast -> {
+            currentTick = tickBroadcast.getTick();
 
-            });
-        }).start();
-
+            // Check if it's time to act based on frequency
+            if (currentTick % camera.getFrequency() == 0) {
+                for (StampedDetectedObjects stampedObject : camera.getDetectedObjectsList()) {
+                    if (stampedObject.getTime() == currentTick) {
+                        // Create and send a DetectObjectsEvent
+                        DetectObjectsEvent event = new DetectObjectsEvent(stampedObject.getDetectedObjects());
+                        sendEvent(event);
+            }
+        }
+    }
+});
     }
 }
