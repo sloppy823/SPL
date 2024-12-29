@@ -1,7 +1,11 @@
 package bgu.spl.mics.application.services;
 
 import bgu.spl.mics.MicroService;
+import bgu.spl.mics.application.messages.*;
+import bgu.spl.mics.application.objects.DetectedObject;
 import bgu.spl.mics.application.objects.LiDarWorkerTracker;
+
+import java.util.List;
 
 /**
  * LiDarService is responsible for processing data from the LiDAR sensor and
@@ -12,6 +16,8 @@ import bgu.spl.mics.application.objects.LiDarWorkerTracker;
  * observations.
  */
 public class LiDarService extends MicroService {
+    LiDarWorkerTracker liDarTracker;
+
 
     /**
      * Constructor for LiDarService.
@@ -19,8 +25,8 @@ public class LiDarService extends MicroService {
      * @param liDarTracker The LiDAR tracker object that this service will use to process data.
      */
     public LiDarService(LiDarWorkerTracker liDarTracker) {
-        super("Change_This_Name");
-        // TODO Implement this
+        super("LiDarService");
+        this.liDarTracker = liDarTracker;
     }
 
     /**
@@ -30,6 +36,31 @@ public class LiDarService extends MicroService {
      */
     @Override
     protected void initialize() {
-        // TODO Implement this
+        subscribeBroadcast(TickBroadcast.class, tickBroadcast -> {
+            int currentTick = tickBroadcast.getTick();
+            System.out.println(getName() + " synchronized with tick: " + currentTick);
+
+            // Perform periodic LiDAR-specific tasks using the tracker
+            liDarTracker.setCurrentTick(currentTick);
+        });
+
+        // Subscribe to DetectObjectsEvent
+        subscribeEvent(DetectObjectsEvent.class, event -> {
+            List<DetectedObject> objects = event.getDetectedObjects();
+            System.out.println(getName() + " received DetectObjectsEvent: " + objects);
+
+            // Store or process detected objects in the LiDARTracker
+            liDarTracker.processDetectedObjects(objects);
+        });
+
+
+
+
+
+
+        subscribeBroadcast(TerminatedBroadcast.class, termination -> {
+            System.out.println(getName() + " received TerminationBroadcast. Terminating.");
+            terminate();
+        });
     }
 }

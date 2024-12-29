@@ -12,10 +12,13 @@ public class LiDarWorkerTracker {
     private int frequency;
     private Status status;
     private List<TrackedObject> lastTrackedObjects;
+    private int currentTick;
 
     public enum Status { UP, DOWN, ERROR; }
 
     // Getters and Setters
+    public int getCurrentTick() { return currentTick; }
+    public void setCurrentTick(int currentTick) { this.currentTick = currentTick; }
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
 
