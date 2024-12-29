@@ -10,6 +10,12 @@ public class Pose {
     private float yaw;
     private int time;
 
+    public Pose(float x, float y, float yaw, int time) {
+        this.x = x;
+        this.y = y;
+        this.yaw = yaw;
+        this.time = time;
+    }
     // Getters and Setters
     public float getX() { return x; }
     public void setX(float x) { this.x = x; }

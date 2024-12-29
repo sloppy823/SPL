@@ -11,6 +11,12 @@ public class GPSIMU {
     private Status status;
     private List<Pose> poseList;
 
+    public GPSIMU(int currentTick, Status status, List<Pose> poseList) {
+        this.currentTick = currentTick;
+        this.status = status;
+        this.poseList = poseList;
+    }
+
     public enum Status { UP, DOWN, ERROR; }
 
     // Getters and Setters

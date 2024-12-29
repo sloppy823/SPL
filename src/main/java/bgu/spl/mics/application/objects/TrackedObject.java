@@ -13,6 +13,13 @@ public class TrackedObject {
     private String description;
     private List<CloudPoint> coordinates;
 
+    public TrackedObject(String id, int time, String description, List<CloudPoint> coordinates) {
+        this.id = id;
+        this.time = time;
+        this.description = description;
+        this.coordinates = coordinates;
+    }
+
     // Getters and Setters
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }

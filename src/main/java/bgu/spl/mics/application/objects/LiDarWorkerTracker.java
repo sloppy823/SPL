@@ -14,6 +14,14 @@ public class LiDarWorkerTracker {
     private List<TrackedObject> lastTrackedObjects;
     private int currentTick;
 
+    public LiDarWorkerTracker(int id, int frequency, Status status, List<TrackedObject> lastTrackedObjects, int currentTick) {
+        this.id = id;
+        this.frequency = frequency;
+        this.status = status;
+        this.lastTrackedObjects = lastTrackedObjects;
+        this.currentTick = currentTick;
+    }
+
     public enum Status { UP, DOWN, ERROR; }
 
     // Getters and Setters
@@ -31,3 +39,7 @@ public class LiDarWorkerTracker {
     public List<TrackedObject> getLastTrackedObjects() { return lastTrackedObjects; }
     public void setLastTrackedObjects(List<TrackedObject> lastTrackedObjects) { this.lastTrackedObjects = lastTrackedObjects; }
 }
+
+
+
+

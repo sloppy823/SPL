@@ -12,8 +12,6 @@ public class Camera {
     private STATUS status;
     private List<StampedDetectedObjects> detectedObjectsList;
 
-
-
     // Getters and Setters
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }

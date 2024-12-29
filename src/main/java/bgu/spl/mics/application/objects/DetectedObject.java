@@ -8,6 +8,11 @@ public class DetectedObject {
     private String id;
     private String description;
 
+    public DetectedObject(String id, String description) {
+        this.id = id;
+        this.description = description;
+    }
+
     // Getters and Setters
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
