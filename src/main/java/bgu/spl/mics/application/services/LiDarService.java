@@ -38,16 +38,12 @@ public class LiDarService extends MicroService {
     protected void initialize() {
         subscribeBroadcast(TickBroadcast.class, tickBroadcast -> {
             int currentTick = tickBroadcast.getTick();
-            System.out.println(getName() + " synchronized with tick: " + currentTick);
-
-            // Perform periodic LiDAR-specific tasks using the tracker
             liDarTracker.setCurrentTick(currentTick);
         });
 
         // Subscribe to DetectObjectsEvent
         subscribeEvent(DetectObjectsEvent.class, event -> {
             List<DetectedObject> objects = event.getDetectedObjects();
-            System.out.println(getName() + " received DetectObjectsEvent: " + objects);
 
             // Store or process detected objects in the LiDARTracker
             liDarTracker.processDetectedObjects(objects);

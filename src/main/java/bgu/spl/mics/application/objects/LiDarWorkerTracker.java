@@ -22,6 +22,8 @@ public class LiDarWorkerTracker {
         this.currentTick = currentTick;
     }
 
+    public void processDetectedObjects(List<DetectedObject> objects) { }
+
     public enum Status { UP, DOWN, ERROR; }
 
     // Getters and Setters
