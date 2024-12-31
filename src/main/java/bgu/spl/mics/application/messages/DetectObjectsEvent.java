@@ -9,7 +9,7 @@ import java.util.List;
  * DetectObjectsEvent represents an event sent by a camera service when it detects objects.
  * The event contains a list of detected objects at a specific time.
  */
-class DetectObjectsEvent implements Event<Boolean> {
+public class DetectObjectsEvent implements Event<Boolean> {
 
     private final List<DetectedObject> detectedObjects;
     private final int timestamp;

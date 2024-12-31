@@ -5,7 +5,7 @@ import bgu.spl.mics.application.objects.TrackedObject;
 
 import java.util.List;
 
-class TrackedObjectsEvent implements Event<Void> {
+public class TrackedObjectsEvent implements Event<Void> {
 
     private final List<TrackedObject> trackedObjects;
     private final int timestamp;

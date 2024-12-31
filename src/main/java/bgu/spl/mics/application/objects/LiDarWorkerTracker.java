@@ -1,5 +1,6 @@
 package bgu.spl.mics.application.objects;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -22,8 +23,20 @@ public class LiDarWorkerTracker {
         this.currentTick = currentTick;
     }
 
-    public void processDetectedObjects(List<DetectedObject> objects) { }
-
+  public void processDetectedObjects(List<DetectedObject> objects, int time) {
+      LiDarDataBase dataBase = LiDarDataBase.getInstance(null);
+      for (DetectedObject object : objects) {
+          StampedCloudPoints point = null;
+          for (StampedCloudPoints p : dataBase.getCloudPoints()) {
+              if (p.getId().equals(object.getId())) {
+                  point = p;
+                  break;
+              }
+          }
+          if (point != null)
+              lastTrackedObjects.add(new TrackedObject(object.getId(), time, object.getDescription(), point.getCloudPoints()));
+      }
+  }
     public enum Status { UP, DOWN, ERROR; }
 
     // Getters and Setters
