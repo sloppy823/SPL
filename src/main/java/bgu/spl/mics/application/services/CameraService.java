@@ -23,10 +23,8 @@ public class CameraService extends MicroService {
      * @param camera The Camera object that this service will use to detect objects.
      */
     public CameraService(Camera camera) {
-        super("cameraService");
+        super("CameraService-" + camera.getId());
         this.camera = camera;
-
-        // TODO Implement this);
     }
 
     /**
@@ -36,23 +34,41 @@ public class CameraService extends MicroService {
      */
     @Override
     protected void initialize() {
+
+        // Subscribe to TickBroadcast
         subscribeBroadcast(TickBroadcast.class, tickBroadcast -> {
             currentTick = tickBroadcast.getTick();
 
-            // Check if it's time to act based on frequency
+            // Check if the camera should send events based on its frequency
             if (currentTick % camera.getFrequency() == 0) {
-                for (StampedDetectedObjects stampedObject : camera.getDetectedObjectsList()) {
-                    if (stampedObject.getTime() == currentTick) {
-                        // Create and send a DetectObjectsEvent
-                        DetectObjectsEvent event = new DetectObjectsEvent(stampedObject.getDetectedObjects());
-                        sendEvent(event);
+                processDetectedObjects();
             }
-        }
-    }
-});
+        });
+
+        // Subscribe to TerminatedBroadcast
         subscribeBroadcast(TerminatedBroadcast.class, termination -> {
             System.out.println(getName() + " received TerminationBroadcast. Terminating.");
             terminate();
         });
+    }
+
+    /**
+     * Processes the detected objects and sends DetectObjectsEvents if needed.
+     */
+    private void processDetectedObjects() {
+        List<StampedDetectedObjects> detectedObjectsList = camera.getDetectedObjectsList();
+
+        for (StampedDetectedObjects stampedObject : detectedObjectsList) {
+            if (stampedObject.getTime() == currentTick) {
+                // Create and send a DetectObjectsEvent
+                DetectObjectsEvent event = new DetectObjectsEvent(
+                        stampedObject.getDetectedObjects(),
+                        stampedObject.getTime()
+                );
+
+                // Send the event and handle the result asynchronously
+                sendEvent(event).resolve(true);
+            }
+        }
     }
 }

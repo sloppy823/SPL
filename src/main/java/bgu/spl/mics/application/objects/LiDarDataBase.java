@@ -34,22 +34,24 @@ public class LiDarDataBase {
      */
 
     public static LiDarDataBase getInstance(String filePath) {
-        loadData(filePath);
-        return SingletonHolder.instance;
+        LiDarDataBase instance = SingletonHolder.instance;
+        instance.filePath = filePath;
+        instance.loadData();
+        return instance;
     }
 
-    private void loadData(String filePath) {
-//        Gson gson = new Gson();
-//        File file = new File(filePath);
-//        String fileName = file.getName();
-//        try (FileReader reader = new FileReader(fileName)) {
-//
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//    }
-}
-
+    private void loadData() {
+        Gson gson = new Gson();
+        try (FileReader reader = new FileReader(filePath)) {
+            Type listType = new TypeToken<List<StampedCloudPoints>>() {}.getType();
+            List<StampedCloudPoints> data = gson.fromJson(reader, listType);
+            if (data != null) {
+                cloudPoints.addAll(data);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
     public List<StampedCloudPoints> getCloudPoints() {
         return cloudPoints;
@@ -58,5 +60,4 @@ public class LiDarDataBase {
     public void addCloudPoint(StampedCloudPoints point) {
         cloudPoints.add(point);
     }
-
 }

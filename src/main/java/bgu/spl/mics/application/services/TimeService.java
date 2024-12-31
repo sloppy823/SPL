@@ -46,7 +46,7 @@ public class TimeService extends MicroService {
                 break;
             }
         }
-        sendBroadcast(new TerminatedBroadcast());
+        sendBroadcast(new TerminatedBroadcast(getName()));
         terminate();
     }
 }

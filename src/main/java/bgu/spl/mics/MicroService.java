@@ -166,28 +166,26 @@ public abstract class MicroService implements Runnable {
     @Override
     public final void run() {
         bus.register(this);
-        initialize();
-        while (!terminated) {
-            try {
-                Message message = bus.awaitMessage(this);
-                if (message != null) {
-                    if (message instanceof Event) {
-                        Callback tmp = eventCallbacks.get(message.getClass().getName());
-                        tmp.call(message);
-                    } else {
-                        Callback tmp = broadcastCallbacks.get(message.getClass().getName());
-                        tmp.call(message);
-
+        try {
+            initialize();
+            while (!terminated) {
+                Message msg = bus.awaitMessage(this);
+                if (msg instanceof Event) {
+                    Callback callback = eventCallbacks.get(msg.getClass().getName());
+                    if (callback != null) {
+                        callback.call(msg);
+                    }
+                } else if (msg instanceof Broadcast) {
+                    Callback callback = broadcastCallbacks.get(msg.getClass().getName());
+                    if (callback != null) {
+                        callback.call(msg);
                     }
                 }
-
-            } catch (Exception e) {
-                e.printStackTrace();
             }
-
-        }
-        bus.unregister(this);
-
-
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            bus.unregister(this);
         }
     }
+}
