@@ -1,9 +1,12 @@
 package bgu.spl.mics.application.services;
 
+import bgu.spl.mics.Future;
 import bgu.spl.mics.MicroService;
 import bgu.spl.mics.application.messages.*;
 import bgu.spl.mics.application.objects.Camera;
 import bgu.spl.mics.application.objects.StampedDetectedObjects;
+
+import java.util.List;
 
 /**
  * CameraService is responsible for processing data from the camera and
@@ -38,37 +41,25 @@ public class CameraService extends MicroService {
         // Subscribe to TickBroadcast
         subscribeBroadcast(TickBroadcast.class, tickBroadcast -> {
             currentTick = tickBroadcast.getTick();
+            int realtime = currentTick- camera.getFrequency();
 
             // Check if the camera should send events based on its frequency
-            if (currentTick % camera.getFrequency() == 0) {
-                processDetectedObjects();
-            }
-        });
+            if (realtime > 0) {
+                StampedDetectedObjects stampedObjects = camera.getDetectedObjectsAtTime(realtime);
+                if (stampedObjects != null) {
+                    // Create and send a DetectObjectsEvent
+                    DetectObjectsEvent event = new DetectObjectsEvent(stampedObjects, stampedObjects.getTime(),camera.getId());
+                    // Send the event and handle the result asynchronously
+                    sendEvent(event).resolve(true);
+                }
+        }});
 
-        // Subscribe to TerminatedBroadcast
+            // Subscribe to TerminatedBroadcast
         subscribeBroadcast(TerminatedBroadcast.class, termination -> {
             System.out.println(getName() + " received TerminationBroadcast. Terminating.");
             terminate();
         });
-    }
+        
 
-    /**
-     * Processes the detected objects and sends DetectObjectsEvents if needed.
-     */
-    private void processDetectedObjects() {
-        List<StampedDetectedObjects> detectedObjectsList = camera.getDetectedObjectsList();
-
-        for (StampedDetectedObjects stampedObject : detectedObjectsList) {
-            if (stampedObject.getTime() == currentTick) {
-                // Create and send a DetectObjectsEvent
-                DetectObjectsEvent event = new DetectObjectsEvent(
-                        stampedObject.getDetectedObjects(),
-                        stampedObject.getTime()
-                );
-
-                // Send the event and handle the result asynchronously
-                sendEvent(event).resolve(true);
-            }
-        }
     }
 }
