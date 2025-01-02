@@ -43,20 +43,49 @@ public class FusionSlam {
         return poses;
     }
 
-    public void updateMap(List<TrackedObject> trackedObjects, Pose currentPose) {
+    public boolean updateMap(List<TrackedObject> trackedObjects, Pose currentPose) {
+        boolean isNewItem = false;
+
         for (TrackedObject trackedObject : trackedObjects) {
             boolean isNew = true;
+
+            // Iterate through existing landmarks
             for (LandMark landMark : landMarks) {
                 if (landMark.getId().equals(trackedObject.getId())) {
+                    // Update coordinates by averaging
+                    List<CloudPoint> updatedCoordinates = new ArrayList<>();
+                    List<CloudPoint> oldCoordinates = landMark.getCoordinates();
+                    List<CloudPoint> newCoordinates = trackedObject.getCoordinates();
+
+                    int size = Math.min(oldCoordinates.size(), newCoordinates.size());
+                    for (int i = 0; i < size; i++) {
+                        int avgX = (oldCoordinates.get(i).getX() + newCoordinates.get(i).getX()) / 2;
+                        int avgY = (oldCoordinates.get(i).getY() + newCoordinates.get(i).getY()) / 2;
+                        updatedCoordinates.add(new CloudPoint(avgX, avgY));
+                    }
+
+                    // Replace coordinates with the averaged values
+                    landMark.setCoordinates(updatedCoordinates);
                     isNew = false;
                     break;
                 }
             }
+
+            // Add a new landmark if not found
             if (isNew) {
-                landMarks.add(new LandMark(trackedObject.getId(), trackedObject.getDescription(), trackedObject.getCoordinates()));
+                landMarks.add(new LandMark(
+                        trackedObject.getId(),
+                        trackedObject.getDescription(),
+                        trackedObject.getCoordinates()
+                ));
+                isNewItem = true;
             }
         }
+
+        // Update pose history
         poses.add(currentPose);
+        return isNewItem;
     }
+
 }
 
