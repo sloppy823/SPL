@@ -31,6 +31,11 @@ public class PoseService extends MicroService {
      */
     @Override
     protected void initialize() {
+        // Subscribe to TerminatedBroadcast for shutdown signals
+        subscribeBroadcast(TerminatedBroadcast.class, termination -> {
+            System.out.println(getName() + " received TerminationBroadcast. Terminating.");
+            terminate();
+        });
         // Subscribe to TickBroadcast
         subscribeBroadcast(TickBroadcast.class, tickBroadcast -> {
             // Update the current tick from the broadcast
@@ -38,8 +43,13 @@ public class PoseService extends MicroService {
             gpsimu.setCurrentTick(currentTick);
 
             // Get the current pose and send a PoseEvent
-            Pose currentPose = gpsimu.getPoseList().get(gpsimu.getPoseList().size() - 1);
-            sendEvent(new PoseEvent(currentPose, currentTick));
+            Pose currentPose = gpsimu.getPoseAtTime(currentTick);
+            if (currentPose != null)
+                sendEvent(new PoseEvent(currentPose, currentTick));
+            else {
+                System.out.println(getName() + " could not retrieve pose at tick " + currentTick);
+                sendBroadcast(new TerminatedBroadcast(getName()));
+            }
         });
 
         // Subscribe to TerminatedBroadcast for shutdown signals

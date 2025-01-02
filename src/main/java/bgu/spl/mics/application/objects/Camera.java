@@ -27,14 +27,12 @@ public class Camera {
 
     public List<StampedDetectedObjects> getDetectedObjectsList() { return detectedObjectsList; }
     public StampedDetectedObjects getDetectedObjectsAtTime(int time) {
-        List<DetectedObject> detectedObjects = null;
         for (StampedDetectedObjects sdo : detectedObjectsList) {
             if (sdo.getTime() == time) {
-                detectedObjects = sdo.getDetectedObjects();
-                break;
+                return sdo;
             }
         }
-        return new StampedDetectedObjects(time, detectedObjects);
+        return null;
     }
     public void setDetectedObjectsList(List<StampedDetectedObjects> detectedObjectsList) { this.detectedObjectsList = detectedObjectsList; }
 }

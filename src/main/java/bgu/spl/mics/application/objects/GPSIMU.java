@@ -28,4 +28,13 @@ public class GPSIMU {
 
     public List<Pose> getPoseList() { return poseList; }
     public void setPoseList(List<Pose> poseList) { this.poseList = poseList; }
+
+    public Pose getPoseAtTime(int time) {
+        for (Pose pose : poseList) {
+            if (pose.getTime() == time) {
+                return pose;
+            }
+        }
+        return null;
+    }
 }
