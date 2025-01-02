@@ -41,7 +41,7 @@ public class MessageBusImpl implements MessageBus {
 	public <T> void subscribeEvent(Class<? extends Event<T>> type, MicroService m) {
 		eventSubscribers.putIfAbsent(type, new LinkedList<>());
 		Queue<MicroService> subscribersQueue = eventSubscribers.get(type);
-		synchronized (m){
+		synchronized (type){
 			if (!subscribersQueue.contains(m)) {
 				subscribersQueue.offer(m);
 			}
@@ -53,7 +53,7 @@ public class MessageBusImpl implements MessageBus {
 	public void subscribeBroadcast(Class<? extends Broadcast> type, MicroService m) {
 		broadcastSubscribers.putIfAbsent(type, new LinkedList<>());
 		List<MicroService> subscribersList = broadcastSubscribers.get(type);
-		synchronized (m) {
+		synchronized (type) {
 			if (!subscribersList.contains(m)) {
 				subscribersList.add(m);
 			}
@@ -91,14 +91,13 @@ public class MessageBusImpl implements MessageBus {
 			synchronized (target) {
 				if (target != null) {
 					subscribers.offer(target);
-					Future<T> future = new Future<>();
-					eventFutures.put(e, future);
 					microServiceQueues.get(target).offer(e);
-					return future;
 				}
 			}
 		}
-		return null;
+		Future<T> future = new Future<>();
+		eventFutures.put(e, future);
+		return future;
 	}
 
 	@Override
@@ -108,12 +107,17 @@ public class MessageBusImpl implements MessageBus {
 
 	@Override
 	public void unregister(MicroService m) {
-		for (Queue<MicroService> queue : eventSubscribers.values()) {
-			queue.remove(m);
+		for (Class<? extends Event<?>> type : eventSubscribers.keySet()) {
+			synchronized (type){
+				eventSubscribers.get(type).remove(m);
+			}
 		}
-		for (List<MicroService> list : broadcastSubscribers.values()) {
-			list.remove(m);
+		for (Class<? extends Broadcast> type : broadcastSubscribers.keySet()) {
+			synchronized (type){
+				broadcastSubscribers.get(type).remove(m);
+			}
 		}
+
 		microServiceQueues.remove(m);
 	}
 
