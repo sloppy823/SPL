@@ -42,11 +42,6 @@ public class FusionSlamService extends MicroService {
      */
     @Override
     protected void initialize() {
-        // Subscribe to TickBroadcast for synchronization
-        subscribeBroadcast(TickBroadcast.class, tickBroadcast -> {
-            int currentTick = tickBroadcast.getTick();
-            System.out.println(getName() + " received TickBroadcast at tick: " + currentTick);
-        });
 
         // Subscribe to PoseEvent to update the current pose
         subscribeEvent(PoseEvent.class, event -> {
@@ -56,6 +51,7 @@ public class FusionSlamService extends MicroService {
 
         // Subscribe to TrackedObjectsEvent to process tracked objects
         subscribeEvent(TrackedObjectsEvent.class, event -> {
+            
             List<TrackedObject> trackedObjects = event.getTrackedObjects();
             if (currentPose != null && trackedObjects != null) {
                 boolean isNewItem = fusionSlam.updateMap(trackedObjects, currentPose);
