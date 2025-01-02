@@ -1,5 +1,6 @@
 package bgu.spl.mics.application.objects;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -25,5 +26,15 @@ public class Camera {
     public void setStatus(STATUS status) { this.status = status; }
 
     public List<StampedDetectedObjects> getDetectedObjectsList() { return detectedObjectsList; }
+    public StampedDetectedObjects getDetectedObjectsAtTime(int time) {
+        List<DetectedObject> detectedObjects = null;
+        for (StampedDetectedObjects sdo : detectedObjectsList) {
+            if (sdo.getTime() == time) {
+                detectedObjects = sdo.getDetectedObjects();
+                break;
+            }
+        }
+        return new StampedDetectedObjects(time, detectedObjects);
+    }
     public void setDetectedObjectsList(List<StampedDetectedObjects> detectedObjectsList) { this.detectedObjectsList = detectedObjectsList; }
 }

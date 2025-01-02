@@ -10,6 +10,11 @@ public class StampedDetectedObjects {
     private int time;
     private List<DetectedObject> detectedObjects;
 
+    public StampedDetectedObjects() {
+        this.time = 0;
+        this.detectedObjects = null;
+    }
+
     public StampedDetectedObjects(int time, List<DetectedObject> detectedObjects) {
         this.time = time;
         this.detectedObjects = detectedObjects;
