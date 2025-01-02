@@ -43,8 +43,38 @@ public class FusionSlam {
         return poses;
     }
 
+    private CloudPoint convertToGlobalCoordinates(CloudPoint point, Pose botPose) {
+        // Convert yaw angle from degrees to radians
+        double yawRad = Math.toRadians(botPose.getYaw());
+
+        // Calculate the global coordinates
+        double globalX = (Math.cos(yawRad) * point.getX()) - (Math.sin(yawRad) * point.getY()) + botPose.getX();
+        double globalY = (Math.sin(yawRad) * point.getX()) + (Math.cos(yawRad) * point.getY()) + botPose.getY();
+
+        return new CloudPoint(globalX, globalY);
+    }
+    
+    private CloudPoint averagePoint(CloudPoint oldPoint, CloudPoint newPoint){
+        double avgX = (oldPoint.getX() + newPoint.getX()) / 2;
+        double avgY = (oldPoint.getY() + newPoint.getY()) / 2;
+        return new CloudPoint(avgX, avgY);
+    }
+
+    private List<CloudPoint> averageCoordinates(List<CloudPoint> oldCoordinates, List<CloudPoint> newCoordinates, Pose currentPose){
+        List<CloudPoint> updatedCoordinates = new ArrayList<>();
+        int size = Math.min(oldCoordinates.size(), newCoordinates.size());//may need to change
+        for (int i = 0; i < size; i++) {
+            CloudPoint oldPoint = oldCoordinates.get(i);//already in global
+            CloudPoint newPoint = convertToGlobalCoordinates(newCoordinates.get(i), currentPose);
+            updatedCoordinates.add(averagePoint(oldPoint, newPoint));
+        }
+        return updatedCoordinates;
+    }
+    
+
+
     public boolean updateMap(List<TrackedObject> trackedObjects, Pose currentPose) {
-        boolean isNewItem = false;
+        boolean isThereANewItem = false;
 
         for (TrackedObject trackedObject : trackedObjects) {
             boolean isNew = true;
@@ -53,17 +83,9 @@ public class FusionSlam {
             for (LandMark landMark : landMarks) {
                 if (landMark.getId().equals(trackedObject.getId())) {
                     // Update coordinates by averaging
-                    List<CloudPoint> updatedCoordinates = new ArrayList<>();
                     List<CloudPoint> oldCoordinates = landMark.getCoordinates();
                     List<CloudPoint> newCoordinates = trackedObject.getCoordinates();
-
-                    int size = Math.min(oldCoordinates.size(), newCoordinates.size());
-                    for (int i = 0; i < size; i++) {
-                        int avgX = (oldCoordinates.get(i).getX() + newCoordinates.get(i).getX()) / 2;
-                        int avgY = (oldCoordinates.get(i).getY() + newCoordinates.get(i).getY()) / 2;
-                        updatedCoordinates.add(new CloudPoint(avgX, avgY));
-                    }
-
+                    List<CloudPoint> updatedCoordinates = averageCoordinates(oldCoordinates, newCoordinates, currentPose);
                     // Replace coordinates with the averaged values
                     landMark.setCoordinates(updatedCoordinates);
                     isNew = false;
@@ -78,13 +100,13 @@ public class FusionSlam {
                         trackedObject.getDescription(),
                         trackedObject.getCoordinates()
                 ));
-                isNewItem = true;
+                isThereANewItem = true;
             }
         }
 
         // Update pose history
         poses.add(currentPose);
-        return isNewItem;
+        return isThereANewItem;
     }
 
 }
