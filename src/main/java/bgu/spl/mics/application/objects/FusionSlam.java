@@ -1,139 +1,84 @@
-package bgu.spl.mics.application.objects;
+package bgu.spl.mics.application.services;
+
+import bgu.spl.mics.MicroService;
+import bgu.spl.mics.application.messages.*;
+import bgu.spl.mics.application.objects.FusionSlam;
+import bgu.spl.mics.application.objects.Pose;
+import bgu.spl.mics.application.objects.TrackedObject;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Manages the fusion of sensor data for simultaneous localization and mapping (SLAM).
- * Combines data from multiple sensors (e.g., LiDAR, camera) to build and update a global map.
- * Implements the Singleton pattern to ensure a single instance of FusionSlam exists.
+ * FusionSlamService integrates data from multiple sensors to build and update
+ * the robot's global map.
+ *
+ * This service receives TrackedObjectsEvents from LiDAR workers and PoseEvents from the PoseService,
+ * transforming and updating the map with new landmarks.
  */
-public class FusionSlam {
+public class FusionSlamService extends MicroService {
 
-    private List<LandMark> landMarks;
-    private List<Pose> poses;//maybe not needed
+    private final FusionSlam fusionSlam;
+    private final ConcurrentHashMap<Integer, List<TrackedObjectsEvent>> pendingTrackedObjectsEvents; // Pending tracked objects events
 
-    // Singleton instance holder
-    private static class FusionSlamHolder {
-        private static final FusionSlam instance = new FusionSlam();
+    /**
+     * Constructor for FusionSlamService.
+     *
+     * @param fusionSlam The FusionSLAM object responsible for managing the global map.
+     */
+    public FusionSlamService(FusionSlam fusionSlam) {
+        super("FusionSlamService");
+        this.fusionSlam = fusionSlam;
+        this.pendingTrackedObjectsEvents = new ConcurrentHashMap<>();
     }
 
-    private FusionSlam() {
-        landMarks = new ArrayList<>();
-        poses = new ArrayList<>();
-    }
-
-    public static FusionSlam getInstance() {
-        return FusionSlamHolder.instance;
-    }
-
-    public void addLandMark(LandMark landMark) {
-        landMarks.add(landMark);
-    }
-
-    public List<LandMark> getLandMarks() {
-        return landMarks;
-    }
-
-    public void addPose(Pose pose) {
-        poses.add(pose);
-    }
-    public Pose getPoseAtTime(int timestamp){
-        for (Pose pose : poses) {
-            if (pose.getTime() == timestamp) {
-                return pose;
-            }
-        }
-        return null;
-        //if (poses.size()>=timestamp) return poses.get(timestamp-1);
-    }
-
-    public List<Pose> getPoses() {
-        return poses;
-    }
-
-    private CloudPoint convertToGlobalCoordinates(CloudPoint point, Pose botPose) {
-        // Convert yaw angle from degrees to radians
-        double yawRad = Math.toRadians(botPose.getYaw());
-
-        // Calculate the global coordinates
-        double globalX = (Math.cos(yawRad) * point.getX()) - (Math.sin(yawRad) * point.getY()) + botPose.getX();
-        double globalY = (Math.sin(yawRad) * point.getX()) + (Math.cos(yawRad) * point.getY()) + botPose.getY();
-
-        return new CloudPoint(globalX, globalY);
-    }
-    
-    private CloudPoint averagePoint(CloudPoint oldPoint, CloudPoint newPoint){
-        double avgX = (oldPoint.getX() + newPoint.getX()) / 2;
-        double avgY = (oldPoint.getY() + newPoint.getY()) / 2;
-        return new CloudPoint(avgX, avgY);
-    }
-
-    private List<CloudPoint> convertToGlobalCoordinates(List<CloudPoint> points, Pose botPose) {
-        List<CloudPoint> globalPoints = new ArrayList<>();
-        for (CloudPoint point : points) {
-            globalPoints.add(convertToGlobalCoordinates(point, botPose));
-        }
-        return globalPoints;
-    }
-    private List<CloudPoint> averageCoordinates(List<CloudPoint> oldCoordinates, List<CloudPoint> newCoordinates, Pose currentPose){
-        List<CloudPoint> updatedCoordinates = new ArrayList<>();
-        int size = Math.min(oldCoordinates.size(), newCoordinates.size());
-        for (int i = 0; i < size; i++) {
-            CloudPoint oldPoint = oldCoordinates.get(i);//already in global
-            CloudPoint newPoint = convertToGlobalCoordinates(newCoordinates.get(i), currentPose);
-            updatedCoordinates.add(averagePoint(oldPoint, newPoint));
-        }
-        if (oldCoordinates.size()>size) {
-            for (int i = size; i < oldCoordinates.size(); i++) {
-                updatedCoordinates.add(oldCoordinates.get(i));
-            }
-        }
-        if (newCoordinates.size()>size) {
-            for (int i = size; i < newCoordinates.size(); i++) {
-                updatedCoordinates.add(convertToGlobalCoordinates(newCoordinates.get(i), currentPose));
-            }
-        }
-        return updatedCoordinates;
-    }
-    
-
-
-    public boolean updateMap(List<TrackedObject> trackedObjects, Pose currentPose) {
-        boolean isThereANewItem = false;
-
-        for (TrackedObject trackedObject : trackedObjects) {
-            boolean isNew = true;
-
-            // Iterate through existing landmarks
-            for (LandMark landMark : landMarks) {
-                if (landMark.getId().equals(trackedObject.getId())) {
-                    // Update coordinates by averaging
-                    List<CloudPoint> oldCoordinates = landMark.getCoordinates();
-                    List<CloudPoint> newCoordinates = trackedObject.getCoordinates();
-                    List<CloudPoint> updatedCoordinates = averageCoordinates(oldCoordinates, newCoordinates, currentPose);
-                    // Replace coordinates with the averaged values
-                    landMark.setCoordinates(updatedCoordinates);
-                    isNew = false;
-                    break;
+    /**
+     * Initializes the FusionSlamService.
+     * Registers the service to handle TrackedObjectsEvents, PoseEvents, and TickBroadcasts,
+     * and sets up callbacks for updating the global map.
+     */
+    @Override
+    protected void initialize() {
+        // Subscribe to PoseEvent to update the current pose
+        subscribeEvent(PoseEvent.class, event -> {
+            int timestamp = event.getTimestamp();
+            Pose pose = event.getPose();
+            fusionSlam.addPose(pose);
+            System.out.println(" added pose: " + pose + " at timestamp: " + timestamp);
+            if (pendingTrackedObjectsEvents.containsKey(timestamp)) {
+                List<TrackedObjectsEvent> trackedObjectsEvents = pendingTrackedObjectsEvents.remove(timestamp);
+                for (TrackedObjectsEvent trackedObjectsEvent : trackedObjectsEvents) {
+                    fusionSlam.updateMap(trackedObjectsEvent.getTrackedObjects(), pose);
+                    System.out.println(" updated map with tracked objects: " + trackedObjectsEvent.getTrackedObjects() + " at timestamp: " + timestamp);
                 }
             }
+        });
 
-            // Add a new landmark if not found
-            if (isNew) {
-                landMarks.add(new LandMark(
-                        trackedObject.getId(),
-                        trackedObject.getDescription(),
-                        convertToGlobalCoordinates(trackedObject.getCoordinates(), currentPose)
-                ));
-                isThereANewItem = true;
+        // Subscribe to TrackedObjectsEvent to process tracked objects
+        subscribeEvent(TrackedObjectsEvent.class, event -> {
+            int eventTimestamp = event.getTimestamp();
+            List<TrackedObject> trackedObjects = event.getTrackedObjects();
+            Pose position = fusionSlam.getPoseAtTime(eventTimestamp);
+            if(position != null){
+                fusionSlam.updateMap(trackedObjects, position);
+                System.out.println(" updated map with tracked objects: " + trackedObjects + " at timestamp: " + eventTimestamp);
             }
-        }
+            else {
+                System.out.println(getName() + " waiting for pose at timestamp " + eventTimestamp);
+                pendingTrackedObjectsEvents.computeIfAbsent(eventTimestamp, k -> new ArrayList<>()).add(event);
+            }
+        });
 
-        // Update pose history
-        poses.add(currentPose);
-        return isThereANewItem;
+        // Subscribe to TerminatedBroadcast for shutdown signals
+        subscribeBroadcast(TerminatedBroadcast.class, termination -> {
+            System.out.println(getName() + " received TerminationBroadcast. Terminating.");
+            terminate();
+        });
+
+        subscribeBroadcast(CrashedBroadcast.class, termination -> {
+            System.out.println(getName() + " received CrashedBroadcast. Terminating.");
+            terminate();
+        });
     }
-
 }
-
