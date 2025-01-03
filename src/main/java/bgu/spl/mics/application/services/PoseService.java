@@ -1,6 +1,7 @@
 package bgu.spl.mics.application.services;
 
 import bgu.spl.mics.MicroService;
+import bgu.spl.mics.application.messages.CrashedBroadcast;
 import bgu.spl.mics.application.messages.PoseEvent;
 import bgu.spl.mics.application.messages.TerminatedBroadcast;
 import bgu.spl.mics.application.messages.TickBroadcast;
@@ -55,6 +56,11 @@ public class PoseService extends MicroService {
         // Subscribe to TerminatedBroadcast for shutdown signals
         subscribeBroadcast(TerminatedBroadcast.class, termination -> {
             System.out.println(getName() + " received TerminationBroadcast. Terminating.");
+            terminate();
+        });
+
+        subscribeBroadcast(CrashedBroadcast.class, termination -> {
+            System.out.println(getName() + " received CrashedBroadcast. Terminating.");
             terminate();
         });
     }

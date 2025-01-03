@@ -1,9 +1,11 @@
 package bgu.spl.mics.application.services;
 
+import bgu.spl.mics.Broadcast;
 import bgu.spl.mics.Future;
 import bgu.spl.mics.MicroService;
 import bgu.spl.mics.application.messages.*;
 import bgu.spl.mics.application.objects.Camera;
+import bgu.spl.mics.application.objects.DetectedObject;
 import bgu.spl.mics.application.objects.StampedDetectedObjects;
 
 import java.util.List;
@@ -46,6 +48,12 @@ public class CameraService extends MicroService {
             // Check if the camera should send events based on its frequency
             if (realtime > 0) {
                 StampedDetectedObjects stampedObjects = camera.getDetectedObjectsAtTime(realtime);
+
+                for(DetectedObject detectedObject : stampedObjects.getDetectedObjects()) {
+                    if (detectedObject.getId().equals("ERROR"))
+                            sendBroadcast(new CrashedBroadcast("error occurred"));
+                }
+
                 if (stampedObjects != null) {
                     // Create and send a DetectObjectsEvent
                     DetectObjectsEvent event = new DetectObjectsEvent(stampedObjects, stampedObjects.getTime(),camera.getId());
@@ -60,6 +68,9 @@ public class CameraService extends MicroService {
             terminate();
         });
 
-
+        subscribeBroadcast(CrashedBroadcast.class, termination -> {
+            System.out.println(getName() + " received CrashedBroadcast. Terminating.");
+            terminate();
+        });
     }
 }
