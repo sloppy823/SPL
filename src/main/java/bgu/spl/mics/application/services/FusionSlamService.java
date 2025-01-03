@@ -22,7 +22,6 @@ import java.util.List;
 public class FusionSlamService extends MicroService {
 
     private final FusionSlam fusionSlam;
-    private Pose currentPose;
 
     /**
      * Constructor for FusionSlamService.
@@ -32,7 +31,6 @@ public class FusionSlamService extends MicroService {
     public FusionSlamService(FusionSlam fusionSlam) {
         super("FusionSlamService");
         this.fusionSlam = fusionSlam;
-        this.currentPose = null;
     }
 
     /**
@@ -45,15 +43,27 @@ public class FusionSlamService extends MicroService {
 
         // Subscribe to PoseEvent to update the current pose
         subscribeEvent(PoseEvent.class, event -> {
-            currentPose = event.getPose();
-            System.out.println(getName() + " updated pose to: " + currentPose);
+            fusionSlam.addPose(event.getPose());
+            System.out.println(" added pose: " + event.getPose() + " at timestamp: " + event.getTimestamp());
         });
 
         // Subscribe to TrackedObjectsEvent to process tracked objects
         subscribeEvent(TrackedObjectsEvent.class, event -> {
-            
+            Pose currentPose = null;
+            int eventTimestamp = event.getTimestamp();
             List<TrackedObject> trackedObjects = event.getTrackedObjects();
-            if (currentPose != null && trackedObjects != null) {
+            if (eventTimestamp <= fusionSlam.getPoses().size() && trackedObjects != null){
+                currentPose = fusionSlam.getPoses().get(eventTimestamp);
+                boolean isNewItem = fusionSlam.updateMap(trackedObjects, currentPose);
+                System.out.println(getName() + " updated map with tracked objects. New items added: " + isNewItem);
+            }
+            else if (eventTimestamp > fusionSlam.getPoses().size() && trackedObjects != null){
+                try {
+                    Thread.currentThread().wait();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+
                 boolean isNewItem = fusionSlam.updateMap(trackedObjects, currentPose);
                 System.out.println(getName() + " updated map with tracked objects. New items added: " + isNewItem);
             }

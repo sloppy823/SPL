@@ -11,7 +11,7 @@ import java.util.List;
 public class FusionSlam {
 
     private List<LandMark> landMarks;
-    private List<Pose> poses;
+    private List<Pose> poses;//maybe not needed
 
     // Singleton instance holder
     private static class FusionSlamHolder {
@@ -60,13 +60,30 @@ public class FusionSlam {
         return new CloudPoint(avgX, avgY);
     }
 
+    private List<CloudPoint> convertToGlobalCoordinates(List<CloudPoint> points, Pose botPose) {
+        List<CloudPoint> globalPoints = new ArrayList<>();
+        for (CloudPoint point : points) {
+            globalPoints.add(convertToGlobalCoordinates(point, botPose));
+        }
+        return globalPoints;
+    }
     private List<CloudPoint> averageCoordinates(List<CloudPoint> oldCoordinates, List<CloudPoint> newCoordinates, Pose currentPose){
         List<CloudPoint> updatedCoordinates = new ArrayList<>();
-        int size = Math.min(oldCoordinates.size(), newCoordinates.size());//may need to change
+        int size = Math.min(oldCoordinates.size(), newCoordinates.size());
         for (int i = 0; i < size; i++) {
             CloudPoint oldPoint = oldCoordinates.get(i);//already in global
             CloudPoint newPoint = convertToGlobalCoordinates(newCoordinates.get(i), currentPose);
             updatedCoordinates.add(averagePoint(oldPoint, newPoint));
+        }
+        if (oldCoordinates.size()>size) {
+            for (int i = size; i < oldCoordinates.size(); i++) {
+                updatedCoordinates.add(oldCoordinates.get(i));
+            }
+        }
+        if (newCoordinates.size()>size) {
+            for (int i = size; i < newCoordinates.size(); i++) {
+                updatedCoordinates.add(convertToGlobalCoordinates(newCoordinates.get(i), currentPose));
+            }
         }
         return updatedCoordinates;
     }
@@ -98,7 +115,7 @@ public class FusionSlam {
                 landMarks.add(new LandMark(
                         trackedObject.getId(),
                         trackedObject.getDescription(),
-                        trackedObject.getCoordinates()
+                        convertToGlobalCoordinates(trackedObject.getCoordinates(), currentPose)
                 ));
                 isThereANewItem = true;
             }
