@@ -70,5 +70,10 @@ public class LiDarService extends MicroService {
             System.out.println(getName() + " received TerminationBroadcast. Terminating.");
             terminate();
         });
+
+        subscribeBroadcast(CrashedBroadcast.class, termination -> {
+            System.out.println(getName() + " received CrashedBroadcast. Terminating.");
+            terminate();
+        });
     }
 }
