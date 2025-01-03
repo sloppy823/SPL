@@ -1,16 +1,14 @@
 package bgu.spl.mics.application.services;
 
 import bgu.spl.mics.MicroService;
-import bgu.spl.mics.application.messages.PoseEvent;
-import bgu.spl.mics.application.messages.TerminatedBroadcast;
-import bgu.spl.mics.application.messages.TickBroadcast;
-import bgu.spl.mics.application.messages.TrackedObjectsEvent;
+import bgu.spl.mics.application.messages.*;
 import bgu.spl.mics.application.objects.FusionSlam;
 import bgu.spl.mics.application.objects.Pose;
 import bgu.spl.mics.application.objects.TrackedObject;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * FusionSlamService integrates data from multiple sensors to build and update
@@ -22,6 +20,7 @@ import java.util.List;
 public class FusionSlamService extends MicroService {
 
     private final FusionSlam fusionSlam;
+    private final ConcurrentHashMap<Integer, TrackedObjectsEvent> pendingTrackedObjectsEvents; // Pending tracked objects events. maybe could be normal map
 
     /**
      * Constructor for FusionSlamService.
@@ -31,6 +30,7 @@ public class FusionSlamService extends MicroService {
     public FusionSlamService(FusionSlam fusionSlam) {
         super("FusionSlamService");
         this.fusionSlam = fusionSlam;
+        this.pendingTrackedObjectsEvents = new ConcurrentHashMap<>();
     }
 
     /**
@@ -43,29 +43,29 @@ public class FusionSlamService extends MicroService {
 
         // Subscribe to PoseEvent to update the current pose
         subscribeEvent(PoseEvent.class, event -> {
-            fusionSlam.addPose(event.getPose());
-            System.out.println(" added pose: " + event.getPose() + " at timestamp: " + event.getTimestamp());
+            int timestamp = event.getTimestamp();
+            Pose pose = event.getPose();
+            fusionSlam.addPose(pose);
+            System.out.println(" added pose: " + pose + " at timestamp: " + timestamp);
+            if (pendingTrackedObjectsEvents.containsKey(timestamp)) {
+                TrackedObjectsEvent trackedObjectsEvent = pendingTrackedObjectsEvents.remove(event.getTimestamp());
+                fusionSlam.updateMap(trackedObjectsEvent.getTrackedObjects(), pose);
+                System.out.println(" updated map with tracked objects: " + trackedObjectsEvent.getTrackedObjects() + " at timestamp: " + event.getTimestamp());
+            }
         });
 
         // Subscribe to TrackedObjectsEvent to process tracked objects
         subscribeEvent(TrackedObjectsEvent.class, event -> {
-            Pose currentPose = null;
             int eventTimestamp = event.getTimestamp();
             List<TrackedObject> trackedObjects = event.getTrackedObjects();
-            if (eventTimestamp <= fusionSlam.getPoses().size() && trackedObjects != null){
-                currentPose = fusionSlam.getPoses().get(eventTimestamp);
-                boolean isNewItem = fusionSlam.updateMap(trackedObjects, currentPose);
-                System.out.println(getName() + " updated map with tracked objects. New items added: " + isNewItem);
+            Pose position = fusionSlam.getPoseAtTime(eventTimestamp);
+            if(position != null){
+                fusionSlam.updateMap(trackedObjects, position);
+                System.out.println(" updated map with tracked objects: " + trackedObjects + " at timestamp: " + eventTimestamp);
             }
-            else if (eventTimestamp > fusionSlam.getPoses().size() && trackedObjects != null){
-                try {
-                    Thread.currentThread().wait();
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-
-                boolean isNewItem = fusionSlam.updateMap(trackedObjects, currentPose);
-                System.out.println(getName() + " updated map with tracked objects. New items added: " + isNewItem);
+            else {
+                System.out.println(getName() + " waiting for pose at timestamp " + eventTimestamp);
+                pendingTrackedObjectsEvents.put(eventTimestamp, event);
             }
         });
 

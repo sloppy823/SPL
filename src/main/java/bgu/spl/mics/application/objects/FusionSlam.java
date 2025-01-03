@@ -38,6 +38,15 @@ public class FusionSlam {
     public void addPose(Pose pose) {
         poses.add(pose);
     }
+    public Pose getPoseAtTime(int timestamp){
+        for (Pose pose : poses) {
+            if (pose.getTime() == timestamp) {
+                return pose;
+            }
+        }
+        return null;
+        //if (poses.size()>=timestamp) return poses.get(timestamp-1);
+    }
 
     public List<Pose> getPoses() {
         return poses;
