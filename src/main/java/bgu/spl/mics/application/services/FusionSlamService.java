@@ -20,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class FusionSlamService extends MicroService {
 
     private final FusionSlam fusionSlam;
-    private final ConcurrentHashMap<Integer, TrackedObjectsEvent> pendingTrackedObjectsEvents; // Pending tracked objects events. maybe could be normal map
+    private final ConcurrentHashMap<Integer, List<TrackedObjectsEvent>> pendingTrackedObjectsEvents; // Pending tracked objects events
 
     /**
      * Constructor for FusionSlamService.
@@ -40,7 +40,6 @@ public class FusionSlamService extends MicroService {
      */
     @Override
     protected void initialize() {
-
         // Subscribe to PoseEvent to update the current pose
         subscribeEvent(PoseEvent.class, event -> {
             int timestamp = event.getTimestamp();
@@ -48,9 +47,11 @@ public class FusionSlamService extends MicroService {
             fusionSlam.addPose(pose);
             System.out.println(" added pose: " + pose + " at timestamp: " + timestamp);
             if (pendingTrackedObjectsEvents.containsKey(timestamp)) {
-                TrackedObjectsEvent trackedObjectsEvent = pendingTrackedObjectsEvents.remove(event.getTimestamp());
-                fusionSlam.updateMap(trackedObjectsEvent.getTrackedObjects(), pose);
-                System.out.println(" updated map with tracked objects: " + trackedObjectsEvent.getTrackedObjects() + " at timestamp: " + event.getTimestamp());
+                List<TrackedObjectsEvent> trackedObjectsEvents = pendingTrackedObjectsEvents.remove(timestamp);
+                for (TrackedObjectsEvent trackedObjectsEvent : trackedObjectsEvents) {
+                    fusionSlam.updateMap(trackedObjectsEvent.getTrackedObjects(), pose);
+                    System.out.println(" updated map with tracked objects: " + trackedObjectsEvent.getTrackedObjects() + " at timestamp: " + timestamp);
+                }
             }
         });
 
@@ -65,7 +66,7 @@ public class FusionSlamService extends MicroService {
             }
             else {
                 System.out.println(getName() + " waiting for pose at timestamp " + eventTimestamp);
-                pendingTrackedObjectsEvents.put(eventTimestamp, event);
+                pendingTrackedObjectsEvents.computeIfAbsent(eventTimestamp, k -> new ArrayList<>()).add(event);
             }
         });
 
