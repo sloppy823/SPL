@@ -7,6 +7,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -52,16 +53,22 @@ public class GurionRockRunner {
 
             // Parse LiDAR Workers
             List<LiDarWorkerTracker> lidarWorkers = new ArrayList<>();
-            Type lidarListType = new TypeToken<List<LiDarWorkerTracker>>() {}.getType();
-            lidarWorkers = new Gson().fromJson(config.get("LiDarWorkers"), lidarListType);
+            Type lidarWorkerListType = new TypeToken<List<LiDarWorkerTracker>>() {}.getType();
+            lidarWorkers = new Gson().fromJson(config.get("LiDarWorkers"), lidarWorkerListType);
 
             // Parse GPSIMU (Pose Data)
-            String posePath = config.get("PoseDataPath").getAsString();
+            String posePath = config.get("PoseJsonFile").getAsString();
             GPSIMU gpsimu = new GPSIMU();
             gpsimu.loadPoseData(posePath);
 
+            // Handle LiDarDataPath if exists
+            String lidarDataPath = config.has("LiDarDataPath") ? config.get("LiDarDataPath").getAsString() : null;
+             if (lidarDataPath != null) {
+                 LiDarDataBase lidarDatabase = LiDarDataBase.getInstance(lidarDataPath);
+             }
+
             // Initialize FusionSLAM
-            FusionSlam fusionSlam = new FusionSlam();
+            FusionSlam fusionSlam = FusionSlam.getInstance();
 
             // Parse Timing Parameters
             int tickTime = config.get("TickTime").getAsInt();
@@ -74,10 +81,11 @@ public class GurionRockRunner {
             for (Camera camera : cameras) {
                 executor.execute(new CameraService(camera));
             }
-            for (LiDarWorkerTracker lidar : lidarWorkers) {
-                LiDarDataBase db = LiDarDataBase.getInstance(config.get("LiDarDataPath").getAsString());
-                executor.execute(new LiDarService(lidar, db));
+
+            for (LiDarWorkerTracker lidarWorker : lidarWorkers) {
+                executor.execute(new LiDarService(lidarWorker));
             }
+
             executor.execute(new PoseService(gpsimu));
             executor.execute(new FusionSlamService(fusionSlam));
             executor.execute(new TimeService(tickTime, duration));
@@ -88,7 +96,14 @@ public class GurionRockRunner {
             // Write Output File
             writeOutputFile(configFilePath, fusionSlam, gpsimu);
 
+        } catch (FileNotFoundException e) {
+            System.err.println("Configuration file not found: " + configFilePath);
+            e.printStackTrace();
         } catch (IOException e) {
+            System.err.println("Error reading configuration file: " + configFilePath);
+            e.printStackTrace();
+        } catch (Exception e) {
+            System.err.println("Unexpected error occurred:");
             e.printStackTrace();
         }
     }
@@ -113,6 +128,7 @@ public class GurionRockRunner {
             }
 
         } catch (IOException e) {
+            System.err.println("Error writing output file:");
             e.printStackTrace();
         }
     }

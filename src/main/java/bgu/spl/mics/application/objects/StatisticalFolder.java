@@ -7,8 +7,8 @@ package bgu.spl.mics.application.objects;
  */
 public class StatisticalFolder {
     private int systemRuntime;
-    private int numDetectedObjects;
-    private int numTrackedObjects;
+    private static int numDetectedObjects;
+    private static int numTrackedObjects;
     private int numLandmarks;
 
     public StatisticalFolder(int systemRuntime, int numDetectedObjects, int numTrackedObjects, int numLandmarks) {
@@ -22,10 +22,10 @@ public class StatisticalFolder {
     public int getSystemRuntime() { return systemRuntime; }
     public void setSystemRuntime(int systemRuntime) { this.systemRuntime = systemRuntime; }
 
-    public int getNumDetectedObjects() { return numDetectedObjects; }
+    public static int getNumDetectedObjects() { return numDetectedObjects; }
     public void setNumDetectedObjects(int numDetectedObjects) { this.numDetectedObjects = numDetectedObjects; }
 
-    public int getNumTrackedObjects() { return numTrackedObjects; }
+    public static int getNumTrackedObjects() { return numTrackedObjects; }
     public void setNumTrackedObjects(int numTrackedObjects) { this.numTrackedObjects = numTrackedObjects; }
 
     public int getNumLandmarks() { return numLandmarks; }

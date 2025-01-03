@@ -1,5 +1,11 @@
 package bgu.spl.mics.application.objects;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
+import java.io.FileReader;
+import java.io.IOException;
+import java.lang.reflect.Type;
 import java.util.List;
 
 /**
@@ -15,6 +21,9 @@ public class GPSIMU {
         this.currentTick = currentTick;
         this.status = status;
         this.poseList = poseList;
+    }
+
+    public GPSIMU() {
     }
 
     public enum Status { UP, DOWN, ERROR; }
@@ -36,5 +45,18 @@ public class GPSIMU {
             }
         }
         return null;
+    }
+
+    /**
+     * Loads pose data from a JSON file.
+     *
+     * @param path the path to the JSON file containing pose data.
+     * @throws IOException if there is an error reading the file.
+     */
+    public void loadPoseData(String path) throws IOException {
+        try (FileReader reader = new FileReader(path)) {
+            Type poseListType = new TypeToken<List<Pose>>() {}.getType();
+            this.poseList = new Gson().fromJson(reader, poseListType);
+        }
     }
 }
